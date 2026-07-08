@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>GLM 50 C — Controle Bluetooth</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #dcdfe4;
+    --text: #1c1f24;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --tx: #2563eb;
+    --rx: #16a34a;
+    --err: #dc2626;
+    --warn: #d97706;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --panel: #1e2127;
+      --border: #2d3138;
+      --text: #e6e8eb;
+      --muted: #9aa1ac;
+      --accent: #5b9dff;
+      --tx: #5b9dff;
+      --rx: #4ade80;
+      --err: #f87171;
+      --warn: #fbbf24;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    padding: 0.9rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  #status {
+    margin-left: auto;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    background: var(--border);
+    color: var(--muted);
+  }
+  #status.connected { background: color-mix(in srgb, var(--rx) 20%, transparent); color: var(--rx); }
+  #status.error { background: color-mix(in srgb, var(--err) 20%, transparent); color: var(--err); }
+  #status.scanning { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) 1fr;
+    min-height: 0;
+  }
+  #commands {
+    padding: 1rem;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  .group { margin-bottom: 1.2rem; }
+  .group h2 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+  }
+  .group .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  button {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    flex: 1 1 auto;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+
+  #log-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.8rem 1rem;
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+    font-size: 0.82rem;
+  }
+  .entry { display: flex; gap: 0.6rem; padding: 0.25rem 0; border-bottom: 1px dashed var(--border); }
+  .entry .dir { width: 2.2rem; flex: none; font-weight: 700; }
+  .entry.tx .dir { color: var(--tx); }
+  .entry.rx .dir { color: var(--rx); }
+  .entry .hex { color: var(--text); white-space: nowrap; }
+  .entry .decoded { color: var(--muted); margin-left: 0.6rem; }
+  .entry.status .dir { color: var(--muted); }
+  .entry.status.error .dir, .entry.status.error .hex { color: var(--err); }
+
+  #clear-log {
+    margin: 0.6rem 1rem;
+    align-self: flex-end;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GLM 50 C &mdash; Controle Bluetooth</h1>
+  <span id="status">deconnecte</span>
+</header>
+
+<main>
+  <div id="commands">
+    <div class="group">
+      <h2>Mesure</h2>
+      <div class="row">
+        <button class="primary" data-cmd="remote_trigger">Mesurer</button>
+        <button data-cmd="measure_continuous">Continu</button>
+        <button data-cmd="measure_stop">Stop continu</button>
+      </div>
+    </div>
+    <div class="group">
+      <h2>Laser</h2>
+      <div class="row">
+        <button data-cmd="laser_on">Laser ON</button>
+        <button data-cmd="laser_off">Laser OFF</button>
+      </div>
+    </div>
+    <div class="group">
+      <h2>Buzzer</h2>
+      <div class="row">
+        <button data-cmd="buzzer_on">Buzzer ON</button>
+        <button data-cmd="buzzer_off">Buzzer OFF</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="log-panel">
+    <div id="log"></div>
+    <button id="clear-log">Effacer le journal</button>
+  </div>
+</main>
+
+<script>
+const statusEl = document.getElementById("status");
+const logEl = document.getElementById("log");
+const buttons = document.querySelectorAll("button[data-cmd]");
+
+function setStatus(status, message) {
+  statusEl.textContent = message || status;
+  statusEl.className = status;
+  buttons.forEach(b => b.disabled = status !== "connected");
+}
+
+function addLogEntry(cls, dirLabel, text, decoded) {
+  const div = document.createElement("div");
+  div.className = "entry " + cls;
+  div.innerHTML = `<span class="dir">${dirLabel}</span><span class="hex"></span>`;
+  div.querySelector(".hex").textContent = text;
+  if (decoded) {
+    const d = document.createElement("span");
+    d.className = "decoded";
+    d.textContent = decoded;
+    div.appendChild(d);
+  }
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function describeExtra(extra) {
+  if (!extra) return "";
+  if (extra.kind === "event") {
+    return `evenement dev_mode=${extra.dev_mode} laser=${extra.laser_on ? "on" : "off"} ` +
+           `resultat=${extra.result.toFixed(3)} comp1=${extra.component1.toFixed(3)} ` +
+           `comp2=${extra.component2.toFixed(3)} crc_ok=${extra.crc_ok}`;
+  }
+  if (extra.kind === "response") {
+    return `reponse status=0x${extra.status.toString(16).padStart(2, "0")} ok=${extra.ok} ` +
+           `payload=[${extra.payload}] crc_ok=${extra.crc_ok}`;
+  }
+  return "";
+}
+
+const ws = new WebSocket(`ws://${location.host}/ws`);
+
+ws.onopen = () => setStatus("scanning", "connexion...");
+
+ws.onmessage = (ev) => {
+  const msg = JSON.parse(ev.data);
+  if (msg.type === "status") {
+    setStatus(msg.status, msg.message);
+    addLogEntry("status " + msg.status, "--", msg.message);
+  } else if (msg.type === "frame") {
+    const cls = msg.direction === "tx" ? "tx" : "rx";
+    const label = msg.direction === "tx" ? "TX" : "RX";
+    addLogEntry(cls, label, msg.hex, describeExtra(msg.extra));
+  }
+};
+
+ws.onerror = () => setStatus("error", "erreur de connexion au serveur local");
+ws.onclose = () => setStatus("error", "connexion fermee");
+
+buttons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    ws.send(JSON.stringify({ cmd: btn.dataset.cmd }));
+  });
+});
+
+document.getElementById("clear-log").addEventListener("click", () => {
+  logEl.innerHTML = "";
+});
+
+setStatus("scanning", "connexion au serveur local...");
+</script>
+
+</body>
+</html>
