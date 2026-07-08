@@ -58,13 +58,14 @@
     color: var(--muted);
   }
   #status.connected { background: color-mix(in srgb, var(--rx) 20%, transparent); color: var(--rx); }
+  #status.continuous { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
   #status.error { background: color-mix(in srgb, var(--err) 20%, transparent); color: var(--err); }
   #status.scanning { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
 
   main {
     flex: 1;
     display: grid;
-    grid-template-columns: minmax(220px, 280px) 1fr;
+    grid-template-columns: minmax(220px, 280px) minmax(260px, 340px) 1fr;
     min-height: 0;
   }
   #commands {
@@ -72,6 +73,36 @@
     border-right: 1px solid var(--border);
     overflow-y: auto;
   }
+  #interpretation {
+    padding: 1rem;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  #interpretation h2 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+  }
+  .frame-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 1rem;
+    font-size: 0.82rem;
+  }
+  .frame-card .frame-hex {
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    word-break: break-all;
+  }
+  .frame-card table { width: 100%; border-collapse: collapse; }
+  .frame-card td { padding: 0.2rem 0; vertical-align: top; }
+  .frame-card td.field-label { color: var(--muted); width: 40%; white-space: nowrap; }
+  .frame-card td.field-value { font-family: "SF Mono", Consolas, Monaco, monospace; }
+  .frame-card.empty { color: var(--muted); font-style: italic; }
   .group { margin-bottom: 1.2rem; }
   .group h2 {
     font-size: 0.75rem;
@@ -80,8 +111,9 @@
     color: var(--muted);
     margin: 0 0 0.5rem;
   }
-  .group .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  button {
+  .group .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .group .hint { font-size: 0.75rem; color: var(--muted); margin: 0.35rem 0 0; }
+  button, select, input[type=number] {
     font: inherit;
     font-size: 0.85rem;
     padding: 0.5rem 0.8rem;
@@ -89,12 +121,13 @@
     border: 1px solid var(--border);
     background: var(--panel);
     color: var(--text);
-    cursor: pointer;
-    flex: 1 1 auto;
   }
+  button { cursor: pointer; flex: 1 1 auto; }
   button:hover { border-color: var(--accent); color: var(--accent); }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button:disabled, select:disabled, input:disabled { opacity: 0.4; cursor: not-allowed; }
   button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  input[type=number] { width: 4.5rem; }
+  select { flex: 1 1 auto; }
 
   #log-panel {
     display: flex;
@@ -106,10 +139,11 @@
     overflow-y: auto;
     padding: 0.8rem 1rem;
     font-family: "SF Mono", Consolas, Monaco, monospace;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
   }
   .entry { display: flex; gap: 0.6rem; padding: 0.25rem 0; border-bottom: 1px dashed var(--border); }
   .entry .dir { width: 2.2rem; flex: none; font-weight: 700; }
+  .entry .elapsed { width: 4rem; flex: none; color: var(--muted); text-align: right; }
   .entry.tx .dir { color: var(--tx); }
   .entry.rx .dir { color: var(--rx); }
   .entry .hex { color: var(--text); white-space: nowrap; }
@@ -117,10 +151,7 @@
   .entry.status .dir { color: var(--muted); }
   .entry.status.error .dir, .entry.status.error .hex { color: var(--err); }
 
-  #clear-log {
-    margin: 0.6rem 1rem;
-    align-self: flex-end;
-  }
+  #clear-log { margin: 0.6rem 1rem; align-self: flex-end; }
 </style>
 </head>
 <body>
@@ -135,25 +166,124 @@
     <div class="group">
       <h2>Mesure</h2>
       <div class="row">
-        <button class="primary" data-cmd="remote_trigger">Mesurer</button>
-        <button data-cmd="measure_continuous">Continu</button>
-        <button data-cmd="measure_stop">Stop continu</button>
+        <button class="primary" data-cmd="measure">Mesurer (un coup)</button>
       </div>
     </div>
+
+    <div class="group">
+      <h2>Mode de mesure avance</h2>
+      <div class="row">
+        <select id="mode-select">
+          <option value="1">Distance simple</option>
+          <option value="2">Distance continue</option>
+          <option value="4">Aire</option>
+          <option value="7">Volume</option>
+          <option value="8">Angle simple</option>
+          <option value="9">Angle continu</option>
+          <option value="10">Hauteur indirecte</option>
+          <option value="11">Longueur indirecte</option>
+          <option value="13">Double hauteur indirecte</option>
+          <option value="15">Aire de mur</option>
+          <option value="22">Niveau a bulle</option>
+          <option value="23">Niveau a bulle continu</option>
+        </select>
+        <button id="btn-validate-mode">Valider le mode</button>
+      </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button id="btn-trigger" class="primary">Declencher</button>
+      </div>
+      <p class="hint">Valide le mode une fois, puis clique sur "Declencher" autant de fois que
+      necessaire (une fois par point de mesure) : comme les appuis successifs sur le bouton
+      physique, l'aire ou le volume demandent plusieurs declenchements avant le resultat final.</p>
+    </div>
+
+    <div class="group">
+      <h2>Mesure repetee</h2>
+      <div class="row">
+        <label for="interval">Intervalle</label>
+        <input type="number" id="interval" value="400" min="0" step="10"> ms
+      </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button id="btn-continuous-start">Demarrer</button>
+        <button id="btn-continuous-stop">Arreter</button>
+      </div>
+      <p class="hint">Simule des appuis repetes sur "Mesurer (un coup)" a intervalle regulier
+      (le mode continu natif du protocole s'est avere instable, cote appareil, quel que soit
+      le rythme). La colonne de droite du journal montre le delai reel entre deux mesures, qui
+      peut etre plus grand que l'intervalle demande si l'appareil est plus lent.</p>
+    </div>
+
+    <div class="group">
+      <h2>Export des mesures</h2>
+      <p class="hint" style="margin:0 0 0.5rem"><span id="measurement-count">0</span> mesure(s)
+      horodatee(s) enregistree(s) (toute mesure reelle recue, quel que soit le bouton utilise).</p>
+      <div class="row">
+        <button id="btn-export-csv">Telecharger CSV</button>
+        <button id="btn-export-json">Telecharger JSON</button>
+      </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button id="btn-clear-measurements">Vider les mesures</button>
+      </div>
+    </div>
+
     <div class="group">
       <h2>Laser</h2>
       <div class="row">
         <button data-cmd="laser_on">Laser ON</button>
         <button data-cmd="laser_off">Laser OFF</button>
       </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button data-cmd="check_laser_enable">Etat laser</button>
+        <button data-cmd="get_laser_class">Classe laser</button>
+      </div>
     </div>
+
     <div class="group">
-      <h2>Buzzer</h2>
+      <h2>Buzzer / retro-eclairage</h2>
       <div class="row">
         <button data-cmd="buzzer_on">Buzzer ON</button>
         <button data-cmd="buzzer_off">Buzzer OFF</button>
       </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button data-cmd="backlight_on">Ecran ON</button>
+        <button data-cmd="backlight_off">Ecran OFF</button>
+      </div>
     </div>
+
+    <div class="group">
+      <h2>Identification / etat</h2>
+      <div class="row">
+        <button data-cmd="get_device_name">Nom</button>
+        <button data-cmd="get_device_info">Infos appareil</button>
+      </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button data-cmd="get_battery_soc">Batterie</button>
+        <button data-cmd="get_rtc">Horloge</button>
+      </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button data-cmd="get_measurement_info">Infos mesure (SNR/temp.)</button>
+      </div>
+      <div class="row" style="margin-top:0.5rem">
+        <button data-cmd="get_comm_info">Infos communication</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Diagnostic liaison</h2>
+      <div class="row">
+        <button data-cmd="echo">Echo</button>
+        <button data-cmd="ping">Ping</button>
+      </div>
+      <p class="hint">Echo renvoie le meme payload : bon exercice pour montrer le CRC aux
+      eleves en corrompant volontairement une trame.</p>
+    </div>
+  </div>
+
+  <div id="interpretation">
+    <h2>Derniere trame envoyee (TX)</h2>
+    <div id="frame-tx" class="frame-card empty">Aucune trame envoyee pour l'instant.</div>
+    <h2>Derniere trame recue (RX)</h2>
+    <div id="frame-rx" class="frame-card empty">Aucune trame recue pour l'instant.</div>
   </div>
 
   <div id="log-panel">
@@ -165,18 +295,26 @@
 <script>
 const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
-const buttons = document.querySelectorAll("button[data-cmd]");
+const allInputs = document.querySelectorAll("button[data-cmd], #btn-validate-mode, #btn-trigger, #mode-select, #interval");
+const startBtn = document.getElementById("btn-continuous-start");
+const stopBtn = document.getElementById("btn-continuous-stop");
 
 function setStatus(status, message) {
   statusEl.textContent = message || status;
   statusEl.className = status;
-  buttons.forEach(b => b.disabled = status !== "connected");
+  const connected = status === "connected" || status === "continuous";
+  const running = status === "continuous";
+  allInputs.forEach(el => el.disabled = !connected || running);
+  startBtn.disabled = !connected || running;
+  stopBtn.disabled = !running;
 }
 
-function addLogEntry(cls, dirLabel, text, decoded) {
+function addLogEntry(cls, dirLabel, text, decoded, elapsedMs) {
   const div = document.createElement("div");
   div.className = "entry " + cls;
-  div.innerHTML = `<span class="dir">${dirLabel}</span><span class="hex"></span>`;
+  const elapsedText = (elapsedMs === null || elapsedMs === undefined) ? "" : `+${elapsedMs}ms`;
+  div.innerHTML = `<span class="dir">${dirLabel}</span><span class="elapsed"></span><span class="hex"></span>`;
+  div.querySelector(".elapsed").textContent = elapsedText;
   div.querySelector(".hex").textContent = text;
   if (decoded) {
     const d = document.createElement("span");
@@ -188,16 +326,44 @@ function addLogEntry(cls, dirLabel, text, decoded) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
+function renderFrameCard(elId, hex, fields, semantic) {
+  const el = document.getElementById(elId);
+  el.classList.remove("empty");
+  let html = `<div class="frame-hex">${hex}</div>`;
+  html += "<table>";
+  (fields || []).forEach(f => {
+    html += `<tr><td class="field-label">${f.label}</td><td class="field-value">${f.value}</td></tr>`;
+  });
+  if (semantic) {
+    html += `<tr><td class="field-label">Interpretation</td><td class="field-value">${semantic}</td></tr>`;
+  }
+  html += "</table>";
+  el.innerHTML = html;
+}
+
+function fmtDecoded(decoded) {
+  if (decoded === null || decoded === undefined) return "";
+  if (typeof decoded === "object") {
+    return Object.entries(decoded).map(([k, v]) => `${k}=${v}`).join(" ");
+  }
+  if (typeof decoded === "number") return decoded.toFixed(4);
+  return String(decoded);
+}
+
 function describeExtra(extra) {
   if (!extra) return "";
   if (extra.kind === "event") {
-    return `evenement dev_mode=${extra.dev_mode} laser=${extra.laser_on ? "on" : "off"} ` +
+    return `evenement ${extra.dev_mode_label} laser=${extra.laser_on ? "on" : "off"} ` +
            `resultat=${extra.result.toFixed(3)} comp1=${extra.component1.toFixed(3)} ` +
            `comp2=${extra.component2.toFixed(3)} crc_ok=${extra.crc_ok}`;
   }
   if (extra.kind === "response") {
-    return `reponse status=0x${extra.status.toString(16).padStart(2, "0")} ok=${extra.ok} ` +
-           `payload=[${extra.payload}] crc_ok=${extra.crc_ok}`;
+    const base = `reponse [${extra.comm_status_label}] crc_ok=${extra.crc_ok}`;
+    const decoded = fmtDecoded(extra.decoded);
+    return decoded ? `${base} -> ${decoded}` : `${base} payload=[${extra.payload}]`;
+  }
+  if (extra.kind === "event_unknown") {
+    return `evenement spontane non reconnu (cmd=${extra.cmd})`;
   }
   return "";
 }
@@ -205,6 +371,61 @@ function describeExtra(extra) {
 const ws = new WebSocket(`ws://${location.host}/ws`);
 
 ws.onopen = () => setStatus("scanning", "connexion...");
+
+const measurements = [];
+const measurementCountEl = document.getElementById("measurement-count");
+
+function recordMeasurement(entry) {
+  measurements.push(entry);
+  measurementCountEl.textContent = measurements.length;
+}
+
+function maybeRecordMeasurement(msg) {
+  if (msg.direction !== "rx" || !msg.extra) return;
+  const extra = msg.extra;
+  if (extra.kind === "response" && extra.command === "0x40" && typeof extra.decoded === "number") {
+    recordMeasurement({
+      timestamp: msg.timestamp, source: "mesure directe (0x40)", mode: "Distance",
+      valeur: extra.decoded, composante1: "", composante2: "",
+    });
+  } else if (extra.kind === "event" && extra.dev_mode !== 0) {
+    recordMeasurement({
+      timestamp: msg.timestamp, source: "evenement (0x55)", mode: extra.dev_mode_label,
+      valeur: extra.result, composante1: extra.component1, composante2: extra.component2,
+    });
+  }
+}
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function measurementsToCSV() {
+  // Point-virgule : separateur par defaut d'Excel en locale francaise.
+  const header = ["timestamp", "source", "mode", "valeur", "composante1", "composante2"].join(";");
+  const lines = measurements.map(m =>
+    [m.timestamp, m.source, m.mode, m.valeur, m.composante1, m.composante2].join(";"));
+  return [header, ...lines].join("\n");
+}
+
+document.getElementById("btn-export-csv").addEventListener("click", () => {
+  downloadFile(`glm_mesures_${Date.now()}.csv`, measurementsToCSV(), "text/csv;charset=utf-8");
+});
+
+document.getElementById("btn-export-json").addEventListener("click", () => {
+  downloadFile(`glm_mesures_${Date.now()}.json`, JSON.stringify(measurements, null, 2), "application/json");
+});
+
+document.getElementById("btn-clear-measurements").addEventListener("click", () => {
+  measurements.length = 0;
+  measurementCountEl.textContent = "0";
+});
 
 ws.onmessage = (ev) => {
   const msg = JSON.parse(ev.data);
@@ -214,17 +435,45 @@ ws.onmessage = (ev) => {
   } else if (msg.type === "frame") {
     const cls = msg.direction === "tx" ? "tx" : "rx";
     const label = msg.direction === "tx" ? "TX" : "RX";
-    addLogEntry(cls, label, msg.hex, describeExtra(msg.extra));
+    const semantic = describeExtra(msg.extra);
+    addLogEntry(cls, label, msg.hex, semantic, msg.elapsed_ms);
+    // Le battement de cur non identifie (evenement recurrent cmd=0x11) reste
+    // visible dans le journal brut mais n'ecrase pas la carte "derniere trame".
+    const isHeartbeat = msg.extra && msg.extra.kind === "event_unknown";
+    if (!isHeartbeat) {
+      renderFrameCard(msg.direction === "tx" ? "frame-tx" : "frame-rx", msg.hex, msg.fields, semantic);
+    }
+    maybeRecordMeasurement(msg);
   }
 };
 
 ws.onerror = () => setStatus("error", "erreur de connexion au serveur local");
 ws.onclose = () => setStatus("error", "connexion fermee");
 
-buttons.forEach(btn => {
+document.querySelectorAll("button[data-cmd]").forEach(btn => {
   btn.addEventListener("click", () => {
     ws.send(JSON.stringify({ cmd: btn.dataset.cmd }));
   });
+});
+
+document.getElementById("btn-validate-mode").addEventListener("click", () => {
+  const devMode = parseInt(document.getElementById("mode-select").value, 10);
+  ws.send(JSON.stringify({ cmd: "set_mode", dev_mode: devMode }));
+});
+
+document.getElementById("btn-trigger").addEventListener("click", () => {
+  ws.send(JSON.stringify({ cmd: "remote_trigger" }));
+});
+
+document.getElementById("btn-continuous-start").addEventListener("click", () => {
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  const intervalMs = parseInt(document.getElementById("interval").value, 10) || 0;
+  ws.send(JSON.stringify({ cmd: "continuous_start", interval_ms: intervalMs }));
+});
+
+document.getElementById("btn-continuous-stop").addEventListener("click", () => {
+  ws.send(JSON.stringify({ cmd: "continuous_stop" }));
 });
 
 document.getElementById("clear-log").addEventListener("click", () => {
