@@ -6,14 +6,17 @@ publies a l'origine sur le Bosch Developer Portal dans le cadre du "Bosch GLM/PL
 App Kit".
 
 Cette page a ete depubliee (redirection 404) suite a une migration de portail cote Bosch.
-Ils restent accessibles ici :
+L'annonce d'origine indiquait explicitement un "telechargement en libre-service" (self-service),
+sans compte ni NDA requis, destine aux developpeurs tiers construisant des applications
+compatibles GLM/PLR — ce n'etait pas un document confidentiel.
 
 - Annonce d'origine (archive Wayback Machine, 2021) :
   https://web.archive.org/web/20211025011608/https://community.developer.bosch.com/t5/Blog/Download-the-Bosch-GLM-PLR-Bluetooth-App-Kit-iOS-Android-for/ba-p/27543
-- Fichiers PDF encore heberges sur un mirror GitHub tiers :
+- Egalement mirrores sur un depot GitHub tiers :
   https://github.com/PointerEvent/bosch-plr-demo/tree/main/docs
 
-Ces PDF ne sont pas commits dans ce depot (voir `.gitignore`) pour eviter de republier de la
-documentation constructeur sous ce nom de depot. Telecharge-les depuis le lien GitHub ci-dessus
-si tu veux les consulter integralement ; `commands_reference.md` dans ce meme dossier en est un
-resume qui suffit pour utiliser/etendre ce projet.
+Les deux PDF sont inclus tels quels dans `docs/` de ce depot pour faciliter l'usage en TP. Ils
+restent la propriete de Robert Bosch Power Tools GmbH ; aucune licence de redistribution
+explicite n'accompagne le document, mais son mode de diffusion d'origine (libre-service, sans
+authentification) et l'usage pedagogique non-commercial ici en limitent le risque.
+`commands_reference.md` dans ce meme dossier en est un resume pratique.

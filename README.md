@@ -43,8 +43,8 @@ Chrome/Edge specifiquement, puisque le Web Bluetooth API du navigateur n'est pas
   decodage des reponses/evenements).
 - `docs/commands_reference.md` — reference de toutes les commandes du protocole, implementees
   ou non.
-- `docs/SOURCES.md` — provenance des documents officiels Bosch utilises pour reverse-engineerer
-  le protocole.
+- `docs/MT_connectivity_protocol_1_2_9.pdf`, `docs/MT_connectivity_protocol_LRF_command_set_2_5_0.pdf`
+  — documentation officielle Bosch du protocole (voir `docs/SOURCES.md` pour la provenance).
 - `crc_bruteforce.py` — script ayant servi a determiner precisement la variante de CRC-8 utilisee
   (garde comme preuve/documentation, pas destine a etre relance en usage normal).
 - `measure_glm.py`, `find_glm.py`, `scan_glm.py`, `control_glm.py` — scripts de decouverte/test
